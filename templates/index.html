@@ -152,8 +152,26 @@
 <body>
 <header>
   <h1>🎮 ARAM 海克斯大乱斗助手</h1>
-  <span class="badge" id="provider-badge">&nbsp;</span>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <span class="badge" id="provider-badge">&nbsp;</span>
+    <span class="badge" id="user-badge" style="display:none"></span>
+    <button id="btn-users" class="primary" style="display:none; margin:0; padding:6px 12px; font-size:12px; background:#2a3150; color:var(--accent)">用户管理</button>
+    <button id="btn-invite" class="primary" style="display:none; margin:0; padding:6px 12px; font-size:12px; background:var(--gold); color:#1a1400">生成邀请码</button>
+    <button id="btn-chpass" class="primary" style="margin:0; padding:6px 12px; font-size:12px; background:#3a3f55; color:var(--fg)">修改密码</button>
+    <button id="btn-logout" class="primary" style="margin:0; padding:6px 12px; font-size:12px; background:#3a3f55; color:var(--fg)">退出</button>
+  </div>
 </header>
+
+<!-- 修改密码 / 用户管理 弹窗 -->
+<div id="modal-mask" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:100; align-items:center; justify-content:center;">
+  <div id="modal-box" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:22px; min-width:420px; max-width:92vw; max-height:80vh; overflow:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 id="modal-title" style="margin:0; color:var(--gold); font-size:16px"></h3>
+      <span id="modal-close" style="cursor:pointer; color:var(--muted); font-size:20px; line-height:1;">×</span>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
 <main>
   <div class="card">
     <label>英雄名（中文/英文均可）<span class="champ-count" id="champ-count"></span></label>
@@ -174,6 +192,137 @@
 </main>
 
 <script>
+  // ---------- auth：用户信息 + 退出 + 邀请码 ----------
+  fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => {
+    if (!d || !d.ok) { location.href = '/login'; return; }
+    const u = d.user;
+    const ub = document.getElementById('user-badge');
+    ub.textContent = (u.is_admin ? '👑 ' : '👤 ') + u.username;
+    ub.style.display = '';
+    if (u.is_admin) {
+      document.getElementById('btn-invite').style.display = '';
+      document.getElementById('btn-users').style.display = '';
+    }
+  }).catch(() => {});
+
+  document.getElementById('btn-logout').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    location.href = '/login';
+  });
+  document.getElementById('btn-invite').addEventListener('click', async () => {
+    const r = await fetch('/api/admin/invite', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.ok) { alert('生成失败：' + (d.detail || d.error || r.status)); return; }
+    try { await navigator.clipboard.writeText(d.code); } catch (e) {}
+    alert('邀请码已生成并复制到剪贴板：\n\n' + d.code);
+  });
+
+  // ---------- 模态弹窗 ----------
+  const mask = document.getElementById('modal-mask');
+  const mTitle = document.getElementById('modal-title');
+  const mBody = document.getElementById('modal-body');
+  function openModal(title, html) {
+    mTitle.textContent = title;
+    mBody.innerHTML = html;
+    mask.style.display = 'flex';
+  }
+  function closeModal() { mask.style.display = 'none'; mBody.innerHTML = ''; }
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  mask.addEventListener('click', (e) => { if (e.target === mask) closeModal(); });
+
+  const inputCss = 'width:100%; background:#0f1426; border:1px solid var(--border); border-radius:6px; color:var(--fg); padding:9px 11px; font-size:13px; font-family:inherit;';
+  const labelCss = 'display:block; font-size:12px; color:var(--muted); margin:10px 0 5px;';
+
+  // ---------- 修改密码（自己） ----------
+  document.getElementById('btn-chpass').addEventListener('click', () => {
+    openModal('修改密码', `
+      <label style="${labelCss}">原密码</label>
+      <input type="password" id="cp-old" style="${inputCss}">
+      <label style="${labelCss}">新密码（至少 6 位）</label>
+      <input type="password" id="cp-new" style="${inputCss}">
+      <label style="${labelCss}">再次输入新密码</label>
+      <input type="password" id="cp-new2" style="${inputCss}">
+      <div id="cp-msg" style="margin-top:10px; font-size:13px; min-height:18px; color:var(--danger)"></div>
+      <button class="primary" id="cp-submit" style="margin-top:10px; width:100%">确认修改</button>
+    `);
+    document.getElementById('cp-submit').addEventListener('click', async (e) => {
+      const btn = e.target; btn.disabled = true;
+      const msg = document.getElementById('cp-msg'); msg.style.color = 'var(--danger)';
+      const oldp = document.getElementById('cp-old').value;
+      const newp = document.getElementById('cp-new').value;
+      const newp2 = document.getElementById('cp-new2').value;
+      if (!oldp || !newp) { msg.textContent = '请填写完整'; btn.disabled = false; return; }
+      if (newp !== newp2) { msg.textContent = '两次新密码不一致'; btn.disabled = false; return; }
+      try {
+        const r = await fetch('/api/auth/change_password', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ old_password: oldp, new_password: newp }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { msg.textContent = d.detail || '修改失败'; return; }
+        msg.style.color = '#7fd19c';
+        msg.textContent = '修改成功';
+        setTimeout(closeModal, 800);
+      } finally { btn.disabled = false; }
+    });
+  });
+
+  // ---------- 用户管理（管理员） ----------
+  function fmtTs(ts) {
+    if (!ts) return '-';
+    const d = new Date(ts * 1000);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  async function renderUserList() {
+    const r = await fetch('/api/admin/users');
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { mBody.innerHTML = `<div style="color:var(--danger)">${d.detail || '加载失败'}</div>`; return; }
+    const rows = d.users.map(u => `
+      <tr>
+        <td style="padding:8px 6px; border-bottom:1px solid var(--border)">
+          ${u.is_admin ? '👑' : '👤'} ${u.username}
+        </td>
+        <td style="padding:8px 6px; border-bottom:1px solid var(--border); color:var(--muted); font-size:12px">${fmtTs(u.created_at)}</td>
+        <td style="padding:8px 6px; border-bottom:1px solid var(--border); color:var(--muted); font-size:12px">${fmtTs(u.last_login)}</td>
+        <td style="padding:8px 6px; border-bottom:1px solid var(--border); text-align:right">
+          <button class="primary btn-reset" data-id="${u.id}" data-name="${u.username}"
+            style="margin:0; padding:4px 10px; font-size:12px; background:#3a3f55; color:var(--fg)">重置密码</button>
+        </td>
+      </tr>
+    `).join('');
+    mBody.innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:13px">
+        <thead><tr style="color:var(--muted); font-size:12px">
+          <th style="text-align:left; padding:6px; border-bottom:1px solid var(--border)">用户</th>
+          <th style="text-align:left; padding:6px; border-bottom:1px solid var(--border)">注册时间</th>
+          <th style="text-align:left; padding:6px; border-bottom:1px solid var(--border)">最近登录</th>
+          <th style="padding:6px; border-bottom:1px solid var(--border)"></th>
+        </tr></thead>
+        <tbody>${rows || '<tr><td colspan="4" style="padding:16px; color:var(--muted); text-align:center">暂无用户</td></tr>'}</tbody>
+      </table>
+    `;
+    mBody.querySelectorAll('.btn-reset').forEach(btn => {
+      btn.addEventListener('click', () => adminResetPassword(btn.dataset.id, btn.dataset.name));
+    });
+  }
+  async function adminResetPassword(userId, username) {
+    const pwd = prompt(`为用户「${username}」设置新密码（至少 6 位）：`);
+    if (pwd === null) return;
+    if (!pwd || pwd.length < 6) { alert('密码至少 6 位'); return; }
+    const r = await fetch(`/api/admin/users/${userId}/reset_password`, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ new_password: pwd }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert('重置失败：' + (d.detail || r.status)); return; }
+    alert(`已为「${username}」重置密码：\n${pwd}`);
+  }
+  document.getElementById('btn-users').addEventListener('click', () => {
+    openModal('用户管理', '<div style="color:var(--muted)">加载中...</div>');
+    renderUserList();
+  });
+
   fetch('/api/config').then(r => r.json()).then(d => {
     document.getElementById('provider-badge').textContent =
       'Provider: ' + (d.llm_provider || 'gemini');

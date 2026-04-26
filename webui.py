@@ -33,6 +33,10 @@ app = FastAPI(title="ARAM AI 助手")
 BASE_DIR = Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 
+# ==================== 认证 ====================
+from auth import init_auth  # noqa: E402
+init_auth(app)
+
 
 # ==================== 页面 ====================
 @app.get("/", response_class=HTMLResponse)

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 - ARAM AI 助手</title>
+<style>
+  :root {
+    --bg: #0f1320; --card: #1a1f33; --border: #2a3150;
+    --fg: #e3e6f0; --muted: #8891a8; --accent: #00d4ff;
+    --gold: #ffd166; --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background: linear-gradient(180deg,#0b0f1c 0%,#0f1320 100%);
+    color: var(--fg); min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .box {
+    width: 380px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 28px;
+  }
+  h1 { margin: 0 0 6px; font-size: 22px; color: var(--gold); }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .tab {
+    flex: 1; padding: 10px; text-align: center; cursor: pointer;
+    color: var(--muted); border-bottom: 2px solid transparent;
+    font-size: 14px; user-select: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+  input {
+    width: 100%; background: #0f1426; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); padding: 10px 12px; font-size: 14px; font-family: inherit;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  button.primary {
+    width: 100%; margin-top: 18px; padding: 11px; background: var(--accent);
+    color: #0b1020; border: none; border-radius: 6px; font-weight: 600;
+    cursor: pointer; font-size: 14px;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg { margin-top: 12px; font-size: 13px; min-height: 18px; }
+  .msg.err { color: var(--danger); }
+  .msg.ok { color: #7fd19c; }
+  .hide { display: none; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🎮 ARAM 助手</h1>
+  <div class="sub">请登录或使用邀请码注册</div>
+
+  <div class="tabs">
+    <div class="tab" data-mode="login">登录</div>
+    <div class="tab" data-mode="register">注册</div>
+  </div>
+
+  <div id="form-login">
+    <label>用户名</label>
+    <input type="text" id="login-user" autocomplete="username">
+    <label>密码</label>
+    <input type="password" id="login-pass" autocomplete="current-password">
+    <button class="primary" id="btn-login">登录</button>
+  </div>
+
+  <div id="form-register" class="hide">
+    <label>用户名（2~32 字符）</label>
+    <input type="text" id="reg-user" autocomplete="username">
+    <label>密码（至少 6 位）</label>
+    <input type="password" id="reg-pass" autocomplete="new-password">
+    <label>邀请码</label>
+    <input type="text" id="reg-code" autocomplete="off">
+    <button class="primary" id="btn-register">注册</button>
+  </div>
+
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+  const msg = document.getElementById('msg');
+  const tabs = document.querySelectorAll('.tab');
+  const fLogin = document.getElementById('form-login');
+  const fReg = document.getElementById('form-register');
+
+  function setMode(m) {
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.mode === m));
+    fLogin.classList.toggle('hide', m !== 'login');
+    fReg.classList.toggle('hide', m !== 'register');
+    msg.textContent = '';
+    history.replaceState({}, '', '/' + m);
+  }
+  tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
+  setMode('{{MODE}}' === 'register' ? 'register' : 'login');
+
+  function showErr(text) { msg.className = 'msg err'; msg.textContent = text; }
+  function showOk(text) { msg.className = 'msg ok'; msg.textContent = text; }
+
+  async function post(url, body) {
+    const r = await fetch(url, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    const d = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data: d };
+  }
+
+  document.getElementById('btn-login').addEventListener('click', async (e) => {
+    const btn = e.target; btn.disabled = true; msg.textContent = '';
+    try {
+      const { ok, data } = await post('/api/auth/login', {
+        username: document.getElementById('login-user').value.trim(),
+        password: document.getElementById('login-pass').value,
+      });
+      if (!ok) { showErr(data.detail || '登录失败'); return; }
+      showOk('登录成功，正在跳转...');
+      location.href = '/';
+    } finally { btn.disabled = false; }
+  });
+
+  document.getElementById('btn-register').addEventListener('click', async (e) => {
+    const btn = e.target; btn.disabled = true; msg.textContent = '';
+    try {
+      const { ok, data } = await post('/api/auth/register', {
+        username: document.getElementById('reg-user').value.trim(),
+        password: document.getElementById('reg-pass').value,
+        invite_code: document.getElementById('reg-code').value.trim(),
+      });
+      if (!ok) { showErr(data.detail || '注册失败'); return; }
+      showOk('注册成功，正在跳转...');
+      location.href = '/';
+    } finally { btn.disabled = false; }
+  });
+
+  // 回车提交
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    if (!fLogin.classList.contains('hide')) document.getElementById('btn-login').click();
+    else document.getElementById('btn-register').click();
+  });
+</script>
+</body>
+</html>
