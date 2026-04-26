@@ -9,17 +9,29 @@ import sys
 # "en" = English
 LANGUAGE = "zh"
 
+# ==================== LLM Provider 选择 ====================
+# 文本分析使用哪个模型："gemini" | "glm" | "minimax" | "openai"
+# 注意：海克斯图片识别（Vision）始终走 Gemini，与此配置无关
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini")
+
 # ==================== Gemini API 配置 ====================
-# 从环境变量或此处填写的字符串读取 API Key
-# 建议通过系统环境变量设置 GEMINI_API_KEY
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_API_KEY_HERE")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 
-if GEMINI_API_KEY == "YOUR_API_KEY_HERE" or not GEMINI_API_KEY:
-    # 如果没设置环境变量也没填这里的占位符，会报错
-    # 但是对于 GitHub 发布，这里必须是空的/占位符
-    pass
+# ==================== 智谱 GLM 配置（OpenAI 兼容） ====================
+GLM_API_KEY = os.environ.get("GLM_API_KEY", "")
+GLM_MODEL = os.environ.get("GLM_MODEL", "glm-4-flash")
+GLM_BASE_URL = os.environ.get("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4")
 
-GEMINI_MODEL = "gemini-3.1-flash-lite-preview"
+# ==================== MiniMax 配置（OpenAI 兼容） ====================
+MINIMAX_API_KEY = os.environ.get("MINIMAX_API_KEY", "")
+MINIMAX_MODEL = os.environ.get("MINIMAX_MODEL", "abab6.5s-chat")
+MINIMAX_BASE_URL = os.environ.get("MINIMAX_BASE_URL", "https://api.minimax.chat/v1")
+
+# ==================== 通用 OpenAI 兼容通道 (DeepSeek / Qwen / Ollama 等) ====================
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
 # ==================== 热键配置 ====================
 TOGGLE_HOTKEY = "Ctrl+F12"    # 切换悬浮窗显示/隐藏

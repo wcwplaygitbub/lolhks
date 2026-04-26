@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARAM AI 助手</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1320;
+    --card: #1a1f33;
+    --border: #2a3150;
+    --fg: #e3e6f0;
+    --muted: #8891a8;
+    --accent: #00d4ff;
+    --gold: #ffd166;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background: linear-gradient(180deg,#0b0f1c 0%,#0f1320 100%);
+    color: var(--fg); min-height: 100vh;
+  }
+  header {
+    padding: 20px 28px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { margin: 0; font-size: 20px; color: var(--gold); }
+  .badge {
+    font-size: 12px; padding: 4px 10px; border-radius: 999px;
+    background: #222a44; color: var(--accent); border: 1px solid var(--border);
+  }
+  main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; margin-bottom: 16px;
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input[type=text], textarea {
+    width: 100%; background: #0f1426; border: 1px solid var(--border); border-radius: 6px;
+    color: var(--fg); padding: 10px 12px; font-size: 14px; font-family: inherit;
+  }
+  textarea { min-height: 90px; resize: vertical; }
+  input:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  button.primary {
+    margin-top: 12px; padding: 10px 22px; background: var(--accent); color: #0b1020;
+    border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px;
+  }
+  button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* 主要双栏布局 */
+  .layout { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } }
+  .left-col, .right-col {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px; min-height: 120px;
+  }
+  .left-col .placeholder, .right-col .placeholder { color: var(--muted); text-align: center; padding: 40px 0; }
+  .right-col { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .right-col::-webkit-scrollbar { width: 6px; }
+  .right-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* rune build cards */
+  .build-header { display:flex; align-items:center; gap:10px; margin:18px 0 12px; }
+  .build-header h2 { margin:0; font-size:18px; color:var(--gold); }
+  .build-header .sub { color:var(--muted); font-size:13px; }
+  .build-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+  .build {
+    background: linear-gradient(180deg,#1c223a 0%,#161b2e 100%);
+    border:1px solid var(--border); border-radius:12px; padding:16px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .build.trap { border-color:#5a2030; background: linear-gradient(180deg,#2a1420 0%,#1a1018 100%); }
+  .build .rating-row { display:flex; align-items:center; justify-content:space-between; }
+  .rating-badge {
+    font-weight:700; font-size:13px; padding:3px 10px; border-radius:999px;
+    background:#2a3150; color:var(--gold);
+  }
+  .rating-SSS, .rating-SS { background:#3a2a10; color:#ffd166; }
+  .rating-S { background:#1e3a2a; color:#7fd19c; }
+  .rating-A { background:#1e2f3a; color:var(--accent); }
+  .rating-B, .rating-C, .rating-D { background:#2a2030; color:#a39bb8; }
+  .build.trap .rating-badge { background:#3a1020; color:#ff8a9a; }
+  .tag { font-size:12px; color:var(--muted); }
+  .hex-list { display:flex; flex-wrap:wrap; gap:8px; }
+  .hex {
+    display:flex; align-items:center; gap:6px;
+    background:#0f1426; border:1px solid var(--border); color:#d8deed;
+    padding:4px 10px 4px 4px; border-radius:8px; font-size:13px;
+  }
+  .hex img { width:28px; height:28px; border-radius:5px; background:#000; object-fit:cover; }
+  .hex .name { white-space:nowrap; }
+  .hex .tier-sm { font-size:10px; color:var(--muted); }
+  .build.trap .hex { border-color:#5a2030; color:#ffb3c1; }
+  .section-label { font-size:12px; color:var(--muted); margin-top:4px; }
+  .items { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .item { display:flex; align-items:center; gap:5px; background:#0f1426; border:1px solid var(--border); padding:3px 8px 3px 3px; border-radius:6px; font-size:12px; color:#cfd4e3; }
+  .item img { width:24px; height:24px; border-radius:4px; background:#000; object-fit:cover; }
+  .arrow { color:var(--muted); font-size:14px; }
+  .analysis { font-size:13px; line-height:1.55; color:#c9cde0; white-space:pre-wrap; }
+  .tiers { display:flex; gap:4px; flex-wrap:wrap; }
+  .tier {
+    font-size:11px; padding:2px 6px; border-radius:3px; background:#0f1426;
+    border:1px solid var(--border); color:#9aa3bd;
+  }
+
+  /* 海克斯强化侧栏 */
+  .aug-head { display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:8px; }
+  .aug-head h2 { margin:0; font-size:16px; color:var(--accent); }
+  .aug-head .sub { font-size:11px; color:var(--muted); }
+  .aug-row { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed #2a3150; }
+  .aug-row:last-child { border-bottom:none; }
+  .aug-row img { width:38px; height:38px; background:#000; border-radius:6px; flex-shrink:0; }
+  .aug-row .aug-main { flex:1; min-width:0; }
+  .aug-row .aug-name { font-size:13px; color:#e3e6f0; line-height:1.2; }
+  .aug-row .aug-rarity { font-size:10px; padding:1px 6px; border-radius:3px; margin-left:6px; display:inline-block; vertical-align:middle; }
+  .rarity-kSilver { background:#2a3150; color:#c9d4e3; }
+  .rarity-kGold { background:#3a2a10; color:#ffd166; }
+  .rarity-kPrismatic { background:#3a1a3e; color:#d8a8ff; }
+  .aug-row .aug-stats { font-size:11px; color:var(--muted); margin-top:3px; }
+  .aug-row .aug-stats .wr { color:#7fd19c; font-weight:600; }
+  .spinner {
+    display: inline-block; width: 14px; height: 14px; margin-right: 6px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { color: var(--danger); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* 英雄图标网格 */
+  .champ-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+    gap: 8px; margin-top: 12px; max-height: 320px; overflow-y: auto;
+    padding: 6px 4px 6px 0;
+  }
+  .champ-grid::-webkit-scrollbar { width: 6px; }
+  .champ-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .champ-cell {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 6px 2px; border-radius: 8px; cursor: pointer;
+    border: 1px solid transparent; transition: all .15s;
+  }
+  .champ-cell:hover { background: #0f1426; border-color: var(--accent); }
+  .champ-cell img { width: 52px; height: 52px; border-radius: 8px; background: #000; object-fit: cover; }
+  .champ-cell .n { font-size: 11px; color: #c9cde0; line-height: 1.1; text-align: center; }
+  .champ-cell.active { background: #1e2f3a; border-color: var(--accent); }
+  .champ-count { font-size: 12px; color: var(--muted); margin-left: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 ARAM 海克斯大乱斗助手</h1>
+  <span class="badge" id="provider-badge">&nbsp;</span>
+</header>
+<main>
+  <div class="card">
+    <label>英雄名（中文/英文均可）<span class="champ-count" id="champ-count"></span></label>
+    <input type="text" id="runes-name" placeholder="例如：亚索 / Yasuo（也可在下方直接点击头像）" autocomplete="off">
+    <div class="hint">海克斯联动方案 + 海克斯强化选取率（强化数据带 2 小时缓存）。</div>
+    <button class="primary" id="btn-runes">获取方案</button>
+    <div class="champ-grid" id="champ-grid"><div class="placeholder" style="grid-column:1/-1; color:var(--muted)"><span class="spinner"></span>加载英雄列表...</div></div>
+  </div>
+
+  <div class="layout">
+    <div class="left-col" id="result-apex">
+      <div class="placeholder">输入英雄名后，海克斯联动方案会显示在这里</div>
+    </div>
+    <div class="right-col" id="result-aug">
+      <div class="placeholder">海克斯强化选取率</div>
+    </div>
+  </div>
+</main>
+
+<script>
+  fetch('/api/config').then(r => r.json()).then(d => {
+    document.getElementById('provider-badge').textContent =
+      'Provider: ' + (d.llm_provider || 'gemini');
+  }).catch(() => {});
+
+  const apexEl = document.getElementById('result-apex');
+  const augEl = document.getElementById('result-aug');
+  function setApexLoading(label) {
+    apexEl.innerHTML = '<div class="placeholder"><span class="spinner"></span>' + label + '...</div>';
+  }
+  function setAugLoading(label) {
+    augEl.innerHTML = '<div class="placeholder"><span class="spinner"></span>' + label + '...</div>';
+  }
+  function showError(el, msg) {
+    el.innerHTML = '<div class="error">❌ ' + msg + '</div>';
+  }
+  async function postJson(url, body) {
+    const r = await fetch(url, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    return r.json();
+  }
+
+  // 联动方案渲染
+  function renderBuilds(data) {
+    const esc = s => (s || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const renderCard = (b, idx, isTrap) => {
+      const rating = esc(b.rating || '');
+      const ratingCls = 'rating-badge rating-' + (rating.match(/S+|[ABCD]/)?.[0] || '');
+      const hexs = (b.hextechs || []).map((h, i) => {
+        const icon = (b.hex_icons || [])[i];
+        const tier = (b.tiers || [])[i] || '';
+        const imgHtml = icon ? `<img src="${esc(icon)}" alt="${esc(h)}" loading="lazy" onerror="this.style.display='none'">` : '';
+        const tierHtml = tier ? `<span class="tier-sm">${esc(tier)}</span>` : '';
+        return `<span class="hex">${imgHtml}<span class="name">${esc(h)}</span>${tierHtml}</span>`;
+      }).join('');
+      const items = (b.items || []).length
+        ? (b.items || []).map((it, i) => {
+            const icon = (b.item_icons || [])[i];
+            const imgHtml = icon ? `<img src="${esc(icon)}" alt="${esc(it)}" loading="lazy" onerror="this.style.display='none'">` : '';
+            return (i > 0 ? '<span class="arrow">→</span>' : '') + `<span class="item">${imgHtml}<span>${esc(it)}</span></span>`;
+          }).join('')
+        : '<span class="section-label">（无推荐出装数据）</span>';
+      const label = isTrap ? '⚠️ 陷阱' : (b.tag || '');
+      return `
+        <div class="build ${isTrap ? 'trap' : ''}">
+          <div class="rating-row">
+            <span class="${ratingCls}">${rating || '未知'} 级</span>
+            <span class="tag">${esc(label)}</span>
+          </div>
+          <div>
+            <div class="section-label">海克斯组合（${(b.hextechs || []).length} 个）</div>
+            <div class="hex-list">${hexs || '<span class="tag">无</span>'}</div>
+          </div>
+          ${b.analysis ? `<div>
+            <div class="section-label">机制解析</div>
+            <div class="analysis">${esc(b.analysis)}</div>
+          </div>` : ''}
+          <div>
+            <div class="section-label">推荐出装</div>
+            <div class="items">${items}</div>
+          </div>
+        </div>
+      `;
+    };
+    const header = `
+      <div class="build-header">
+        <h2>${esc(data.champion_cn || '')}</h2>
+        <span class="sub">共 ${data.builds.length} 套方案${data.trap_warnings?.length ? ` · ${data.trap_warnings.length} 个陷阱警告` : ''}</span>
+      </div>
+    `;
+    const buildsHtml = data.builds.length
+      ? `<div class="build-grid">${data.builds.map((b,i) => renderCard(b, i, false)).join('')}</div>`
+      : '<div class="placeholder">暂无正常方案数据</div>';
+    const trapsHtml = data.trap_warnings?.length
+      ? `<div class="build-header"><h2 style="color:#ff8a9a">❌ 陷阱警告</h2><span class="sub">这些组合胜率偏低，建议避开</span></div>
+         <div class="build-grid">${data.trap_warnings.map((b,i) => renderCard(b, i, true)).join('')}</div>`
+      : '';
+    apexEl.innerHTML = header + buildsHtml + trapsHtml;
+  }
+
+  // 海克斯强化侧栏
+  function renderAugments(d) {
+    const esc = s => (s == null ? '' : String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])));
+    const img = (url, alt='') => url ? `<img src="${esc(url)}" alt="${esc(alt)}" title="${esc(alt)}" loading="lazy" onerror="this.style.display='none'">` : '';
+    const rarityLabel = r => ({kPrismatic:'棱彩', kGold:'金', kSilver:'银'})[r] || r.replace('k','');
+    const augs = (d.augments || []).map(a => `
+      <div class="aug-row">
+        ${img(a.icon_url, a.name)}
+        <div class="aug-main">
+          <div class="aug-name">${esc(a.name)}<span class="aug-rarity rarity-${esc(a.rarity)}">${esc(rarityLabel(a.rarity))}</span></div>
+          <div class="aug-stats">选取 ${a.pick_rate}% · <span class="wr">胜 ${a.win_rate != null ? a.win_rate+'%' : '—'}</span>${a.avg_place != null ? ` · 平均名次 ${a.avg_place}` : ''}</div>
+        </div>
+      </div>`).join('');
+    const cachedTag = d.cached ? '<span class="sub" style="color:#7fd19c">· 缓存命中</span>' : '';
+    return `
+      <div class="aug-head">
+        <h2>🎁 海克斯强化</h2>
+        <span class="sub">补丁 ${esc(d.version || '?')} ${cachedTag}</span>
+      </div>
+      <div class="sub" style="margin-bottom:8px; color:var(--muted); font-size:11px;">按选取率排序</div>
+      ${augs || '<div class="placeholder">暂无数据</div>'}
+    `;
+  }
+
+  async function fetchAll() {
+    const name = document.getElementById('runes-name').value.trim();
+    if (!name) return alert('请填写英雄名');
+    setApexLoading('查询 ' + name + ' 联动方案');
+    setAugLoading('查询 ' + name + ' 海克斯强化');
+    // 并行请求
+    postJson('/api/rune_data', {champion: name, num_builds: 12}).then(d => {
+      if (d.ok) renderBuilds(d); else showError(apexEl, d.error || '方案请求失败');
+    }).catch(e => showError(apexEl, e.message));
+    postJson('/api/augments', {champion: name}).then(d => {
+      if (d.ok) augEl.innerHTML = renderAugments(d); else showError(augEl, d.error || '海克斯强化请求失败');
+    }).catch(e => showError(augEl, e.message));
+  }
+
+  document.getElementById('btn-runes').addEventListener('click', fetchAll);
+  document.getElementById('runes-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') fetchAll();
+  });
+
+  // 英雄头像网格 + 即时过滤
+  let allChamps = [];
+  const gridEl = document.getElementById('champ-grid');
+  const countEl = document.getElementById('champ-count');
+  const inputEl = document.getElementById('runes-name');
+
+  function renderGrid(list, highlight) {
+    const esc = s => (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    if (!list.length) {
+      gridEl.innerHTML = '<div class="placeholder" style="grid-column:1/-1; color:var(--muted)">无匹配英雄</div>';
+      return;
+    }
+    gridEl.innerHTML = list.map(c => `
+      <div class="champ-cell ${highlight === c.id ? 'active' : ''}" data-id="${esc(c.id)}" data-cn="${esc(c.name_cn)}" title="${esc(c.name_cn)} · ${esc(c.title_cn)}">
+        <img src="${esc(c.icon)}" alt="${esc(c.name_cn)}" loading="lazy" onerror="this.style.opacity=0.3">
+        <div class="n">${esc(c.name_cn)}</div>
+      </div>`).join('');
+  }
+
+  function filterChamps(q) {
+    q = (q || '').trim().toLowerCase();
+    if (!q) return allChamps;
+    return allChamps.filter(c =>
+      c.name_cn.includes(q) ||
+      c.name_en.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q) ||
+      (c.title_cn || '').includes(q)
+    );
+  }
+
+  inputEl.addEventListener('input', () => {
+    renderGrid(filterChamps(inputEl.value));
+  });
+
+  gridEl.addEventListener('click', e => {
+    const cell = e.target.closest('.champ-cell');
+    if (!cell) return;
+    const name = cell.dataset.cn;
+    inputEl.value = name;
+    renderGrid(filterChamps(name), cell.dataset.id);
+    fetchAll();
+  });
+
+  fetch('/api/champions').then(async r => {
+    const text = await r.text();
+    let d = {};
+    try { d = JSON.parse(text); } catch { d = {}; }
+    if (!r.ok) throw new Error(`HTTP ${r.status} ${d.detail || d.error || text.slice(0,80)}`);
+    if (!d.ok) throw new Error(d.error || '响应缺少 ok 字段（后端版本可能未更新）');
+    allChamps = d.champions || [];
+    countEl.textContent = `共 ${allChamps.length} 位英雄`;
+    renderGrid(allChamps);
+  }).catch(e => {
+    gridEl.innerHTML = `<div class="placeholder" style="grid-column:1/-1;color:var(--danger)">英雄列表加载失败：${e.message}<br><span style="font-size:11px;color:var(--muted)">若是 404，请重启 uvicorn 加载最新代码</span></div>`;
+  });
+</script>
+</body>
+</html>

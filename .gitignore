@@ -26,3 +26,8 @@ test_*.py
 pyproject.toml
 uv.lock
 node_modules/
+
+# Docker build artifacts
+dist/
+*.tar
+*.tar.gz

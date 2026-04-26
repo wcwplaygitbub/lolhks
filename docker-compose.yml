@@ -1,0 +1,35 @@
+services:
+  aram-tool:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: aram-tool:latest
+    container_name: aram-tool
+    restart: unless-stopped
+    ports:
+      - "18081:8000"
+    environment:
+      # 可选 LLM 配置（主功能不需要 AI 也能跑：英雄列表 + 联动方案 + 海克斯强化）
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.1-flash-lite-preview}
+      - GLM_API_KEY=${GLM_API_KEY:-}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - LANGUAGE=${LANGUAGE:-zh}
+    volumes:
+      # 持久化英雄图标 + apexlol 英雄缓存，避免每次重建都重拉
+      - ./static:/app/static
+      - ./apexlol_cache:/app/apexlol_cache
+    logging:
+      driver: json-file
+      options:
+        # 单文件超 100MB 即轮转；max-file=1 表示不保留历史，等效于「超过就清理」
+        max-size: "100m"
+        max-file: "1"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/config"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

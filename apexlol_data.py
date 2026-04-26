@@ -235,6 +235,93 @@ def is_cache_valid(cache_dir: str, ttl_days: int = 7) -> bool:
         return False
 
 
+def ensure_champion_cached(name: str, cache_dir: str) -> tuple[bool, str]:
+    """确保指定英雄在本地缓存中存在；不存在则按需爬取单个英雄并合并到缓存。
+
+    Returns:
+        (ok, info)  ok=True 表示缓存可用；info 为状态消息（成功时含英雄 ID）
+    """
+    global _cache, _name_to_id
+
+    # 懒加载现有缓存
+    if _cache is None or not _cache:
+        load_cache(cache_dir)
+
+    # 先尝试解析英雄 ID（走别名表 + 已有缓存 name_map）
+    cid = resolve_champion_id(name)
+
+    # 缓存里已经有有效 synergies → 直接用
+    if cid:
+        entry = (_cache or {}).get("champions", {}).get(cid)
+        if entry and entry.get("synergies"):
+            return True, f"cache_hit:{cid}"
+
+    # 需要从 apexlol 在线获取。先拿到全量英雄列表用来解析 ID
+    try:
+        from apexlol_scraper import get_champion_list, scrape_champion
+    except Exception as e:  # noqa: BLE001
+        return False, f"scraper_import_failed: {e}"
+
+    champ_list = get_champion_list()
+    if not champ_list:
+        return False, "fetch_champion_list_failed"
+
+    # 如果之前没解析到 ID，用刚拉到的列表再试一次
+    if not cid:
+        for c in champ_list:
+            if name in (c.get("id", ""), c.get("cn_title", ""), c.get("cn_name", "")):
+                cid = c["id"]
+                break
+        if not cid:
+            # 模糊匹配
+            for c in champ_list:
+                for field in ("cn_title", "cn_name", "id"):
+                    v = c.get(field, "") or ""
+                    if v and (name in v or v in name):
+                        cid = c["id"]
+                        break
+                if cid:
+                    break
+    if not cid:
+        return False, f"champion_not_found: {name}"
+
+    # 在线爬取这一个英雄
+    log.info(f"[ApexLol] 按需爬取 {name} -> {cid} ...")
+    data = scrape_champion(cid)
+    if not data or not data.get("synergies"):
+        return False, f"scrape_empty: {cid}"
+
+    # 合并写入缓存
+    if _cache is None or not _cache:
+        _cache = {
+            "meta": {
+                "source": "https://apexlol.info",
+                "scraped_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "on_demand": True,
+            },
+            "champion_list": champ_list,
+            "champions": {},
+        }
+    cn_title = next((c.get("cn_title", "") for c in champ_list if c["id"] == cid), "")
+    _cache.setdefault("champions", {})[cid] = {
+        "cn_title": cn_title,
+        "cn_name": data.get("cn_name", ""),
+        "synergies": data["synergies"],
+    }
+    # 更新 name map
+    _name_to_id = _build_name_map(_cache)
+
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, "apexlol_data.json")
+    try:
+        with open(cache_file, "w", encoding="utf-8") as f:
+            json.dump(_cache, f, ensure_ascii=False, indent=2)
+    except Exception as e:  # noqa: BLE001
+        return False, f"cache_write_failed: {e}"
+
+    return True, f"scraped:{cid}"
+
+
 def resolve_champion_id(name: str) -> str | None:
     """将英雄名（中文/英文/别名）解析为英文 ID。"""
     global _name_to_id
@@ -441,6 +528,82 @@ def extract_top_synergies(champion_name: str, top_n: int = 8) -> str:
         lines.append("")
     
     return "\n".join(lines)
+
+
+def extract_top_synergies_json(champion_name: str, top_n: int = 8) -> dict:
+    """结构化版 extract_top_synergies：返回 dict，供 WebUI 直接渲染卡片。
+
+    结构：
+        {
+          "champion_cn": "...",
+          "champion_id": "...",
+          "builds": [
+            {
+              "rating": "SS",
+              "tiers": ["棱彩阶", "棱彩阶"],
+              "hextechs": ["秘术冲拳", "任务：海牛阿福的勇士"],
+              "tag": "强力联动",
+              "is_trap": False,
+              "analysis": "...",
+              "items": ["金铲铲", "毁坏仪式"],
+            },
+            ...
+          ],
+          "trap_warnings": [ { "hextechs": [...], "analysis": "..." }, ... ]
+        }
+    """
+    global _cache
+    if not _cache:
+        return {"champion_cn": "", "champion_id": "", "builds": [], "trap_warnings": []}
+
+    champ_id = resolve_champion_id(champion_name)
+    if not champ_id:
+        return {"champion_cn": "", "champion_id": "", "builds": [], "trap_warnings": []}
+
+    champ_data = _cache.get("champions", {}).get(champ_id) or {}
+    synergies = champ_data.get("synergies") or []
+    cn_title = _fix_mojibake(champ_data.get("cn_title", champ_id))
+
+    traps = [s for s in synergies if "陷阱" in _fix_mojibake(s.get("tag", ""))]
+    normals = [s for s in synergies if "陷阱" not in _fix_mojibake(s.get("tag", ""))]
+
+    normals_sorted = sorted(normals, key=lambda s: _parse_rating_key(s.get("rating", "")))
+    traps_sorted = sorted(traps, key=lambda s: _parse_rating_key(s.get("rating", "")))
+
+    def _pack(syn: dict) -> dict:
+        raw_rating = _fix_mojibake(syn.get("rating", "")).upper().replace("级", "").strip()
+        tag = _fix_mojibake(syn.get("tag", ""))
+        hex_names = [_fix_mojibake(h) for h in syn.get("hex_names", [])]
+        hex_icons = list(syn.get("hex_icons", []))
+        # 补齐长度对齐
+        while len(hex_icons) < len(hex_names):
+            hex_icons.append("")
+        items = [_fix_mojibake(it) for it in syn.get("recommended_items", [])]
+        item_icons = list(syn.get("recommended_item_icons", []))
+        while len(item_icons) < len(items):
+            item_icons.append("")
+        return {
+            "rating": raw_rating or "未知",
+            "tiers": [_fix_mojibake(t) for t in syn.get("hex_tiers", [])],
+            "hextechs": hex_names,
+            "hex_icons": hex_icons,
+            "tag": tag,
+            "is_trap": "陷阱" in tag,
+            "analysis": _fix_mojibake(syn.get("analysis", "")),
+            "items": items,
+            "item_icons": item_icons,
+        }
+
+    # 正常方案优先（高评级在前），陷阱单独放 trap_warnings
+    builds = [_pack(s) for s in normals_sorted[:top_n]]
+    trap_warnings = [_pack(s) for s in traps_sorted]
+
+    return {
+        "champion_cn": cn_title,
+        "champion_id": champ_id,
+        "builds": builds,
+        "trap_warnings": trap_warnings,
+    }
 
 
 def get_cache_info(cache_dir: str) -> dict:

@@ -28,6 +28,17 @@ HEADERS = {
 REQUEST_DELAY = 0.4  # 请求间隔（秒），避免给网站造成压力
 
 
+def _absolutize(src: str) -> str:
+    """把相对 URL 补成完整 apexlol.info URL。"""
+    if not src:
+        return ""
+    if src.startswith("//"):
+        return "https:" + src
+    if src.startswith("/"):
+        return "https://apexlol.info" + src
+    return src
+
+
 def get_champion_list() -> list[dict]:
     """从英雄名录页面获取所有英雄的 ID 和中文名。
 
@@ -116,11 +127,27 @@ def scrape_champion(champion_id: str) -> dict:
     for card in cards:
         entry = {}
 
-        # 提取海克斯名称（可能有多个）
-        hex_names = [h.get_text(strip=True) for h in card.select(".hex-name")]
-        hex_tiers = [t.get_text(strip=True) for t in card.select(".hex-tier")]
+        # 提取海克斯名称、等级、图标 URL（按 hex-row 逐个对齐）
+        hex_names: list[str] = []
+        hex_tiers: list[str] = []
+        hex_icons: list[str] = []
+        for row in card.select(".hex-row"):
+            n = row.select_one(".hex-name")
+            t = row.select_one(".hex-tier")
+            img = row.select_one("img")
+            if n:
+                hex_names.append(n.get_text(strip=True))
+                hex_tiers.append(t.get_text(strip=True) if t else "")
+                src = (img.get("src") or img.get("data-src") or "") if img else ""
+                hex_icons.append(_absolutize(src))
+        # 兼容极少数旧页面：若没走 hex-row，回退到扁平 selector
+        if not hex_names:
+            hex_names = [h.get_text(strip=True) for h in card.select(".hex-name")]
+            hex_tiers = [t.get_text(strip=True) for t in card.select(".hex-tier")]
+            hex_icons = ["" for _ in hex_names]
         entry["hex_names"] = hex_names
         entry["hex_tiers"] = hex_tiers
+        entry["hex_icons"] = hex_icons
 
         # 提取评级
         rating_el = card.select_one(".rating-badge")
@@ -139,15 +166,20 @@ def scrape_champion(champion_id: str) -> dict:
                 analysis_parts.append(text)
         entry["analysis"] = "\n".join(analysis_parts)
 
-        # 提取推荐出装（每张联动卡片下方可能有金色边框的装备图标）
-        item_elements = card.select(".island-item")
-        recommended_items = []
-        for item_el in item_elements:
+        # 提取推荐出装（含名称 + 图标）
+        recommended_items: list[str] = []
+        recommended_item_icons: list[str] = []
+        for item_el in card.select(".island-item"):
             item_name = item_el.get("data-item-name", "")
-            if item_name:
-                recommended_items.append(item_name)
+            if not item_name:
+                continue
+            recommended_items.append(item_name)
+            img = item_el.select_one("img")
+            src = (img.get("src") or img.get("data-src") or "") if img else ""
+            recommended_item_icons.append(_absolutize(src))
         if recommended_items:
             entry["recommended_items"] = recommended_items
+            entry["recommended_item_icons"] = recommended_item_icons
 
         if entry["analysis"]:  # 只保留有内容的卡片
             synergies.append(entry)
