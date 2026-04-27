@@ -1,110 +1,124 @@
-# ⚔️ ARAM Tool - Hextech Havoc Assistant
+# ARAM Tool - Hextech Havoc Assistant
 
 > English | **[中文](README.md)**
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![Gemini](https://img.shields.io/badge/AI-Gemini-orange?logo=google)
-![Platform](https://img.shields.io/badge/Platform-Windows-lightgrey?logo=windows)
+![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
+![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)
+![AI](https://img.shields.io/badge/AI-Multi--Provider-orange)
 
-A real-time **Gemini AI** powered analysis assistant for League of Legends Hextech Havoc (ARAM). Captures the loading screen, auto-identifies team compositions, and provides complete build, augment, and strategy guides.
+An AI-powered web assistant for League of Legends Hextech Havoc (ARAM). Select a champion to get augment synergy builds, pick/win rate data, item recommendations, and strategy guides.
 
-## ✨ Features
+## Features
 
-- 🎮 **One-Click Analysis** — Click the floating button to screenshot & send to Gemini AI
-- 🤖 **Smart Champion Detection** — AI reads all champion names from the loading screen and auto-identifies yours
-- 📋 **Full Guide Output** — Hextech augments, 6-item builds, skill order, playstyle tips, team strategy
-- 🗡️ **Teammate Recommendations** — Augment and build suggestions for every teammate
-- 🖥️ **Overlay Display** — Always-on-top guide window with drag & hotkey support
-- 🌐 **Bilingual Support** — Switch between Chinese and English with one config change
+- **Augment Synergy Builds** — Real ApexLol data + AI polish, multiple high-win-rate combinations
+- **Augment Pick/Win Rates** — Fetch from op.gg, sorted by rarity and pick rate
+- **Quick Champion Guide** — AI-generated full build, skill order, and playstyle tips
+- **Roster Analysis** — Paste both team compositions for AI team strategy
+- **Hextech Image Recognition** — Upload a 3-pick-1 screenshot, AI Vision recommends the best choice
+- **Trap Warnings** — Auto-flag low win-rate combinations to avoid
+- **Multi-LLM Support** — Text analysis via Gemini / GLM / MiniMax / OpenAI-compatible endpoints
+- **Invite Code Registration** — Admin generates invite links, auto-filled on registration
+- **Docker One-Click Deploy** — Just `docker compose up`
 
-## 🚀 Quick Start
+## Quick Start
 
-### 1. Get a Gemini API Key
+### Docker (Recommended)
 
-Visit [Google AI Studio](https://aistudio.google.com/apikey) to get a free API key.
+```bash
+# 1. Clone
+git clone https://github.com/wcwplaygitbub/lolhks.git
+cd lolhks
 
-### 2. Set Environment Variable
+# 2. Configure (optional)
+cp config_example.py config.py
+# Edit config.py with your API key, or use environment variables
 
-```cmd
-setx GEMINI_API_KEY "your_api_key"
+# 3. Launch
+docker compose up -d
+
+# 4. Open
+# http://localhost:18081
 ```
 
-### 3. Install Dependencies
+A default admin account is created on first launch. The password is printed in the container logs:
 
-```cmd
+```bash
+docker compose logs | grep "password"
+```
+
+### Local
+
+```bash
+# 1. Install dependencies
 pip install -r requirements.txt
+
+# 2. Configure
+cp config_example.py config.py
+# Edit config.py with your API key
+
+# 3. Run
+python -m uvicorn webui:app --host 0.0.0.0 --port 8000
 ```
 
-### 4. Launch
+## Environment Variables
 
-Double-click `launch.bat`, or:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GEMINI_API_KEY` | (required) | Gemini API key |
+| `LLM_PROVIDER` | `gemini` | Text model: `gemini` / `glm` / `minimax` / `openai` |
+| `GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` | Gemini model name |
+| `INVITE_BASE_URL` | (empty) | Invite link prefix, e.g. `https://aram.example.com` |
+| `ADMIN_USERNAME` | `admin` | Default admin username |
+| `ADMIN_PASSWORD` | (random) | Default admin password, auto-generated if not set |
+| `AUTH_SECRET` | (random) | Session signing secret |
+| `LANGUAGE` | `zh` | UI language: `zh` / `en` |
 
-```cmd
-python main.py
+See `config_example.py` for GLM, MiniMax, and OpenAI-compatible endpoint settings.
+
+## Project Structure
+
+```
+lolhks/
+├── webui.py              # WebUI main entry (FastAPI)
+├── auth.py               # Auth system (login/register/invite/admin)
+├── gemini_analyzer.py    # AI analysis module (multi-provider)
+├── llm_provider.py       # LLM abstraction layer
+├── apexlol_data.py       # ApexLol data cache & queries
+├── apexlol_scraper.py    # ApexLol scraper
+├── opgg_scraper.py       # op.gg scraper
+├── lang.py               # i18n strings & prompts
+├── champion_icons.py     # Champion icon downloader
+├── config_example.py     # Config template
+├── templates/
+│   ├── index.html        # Main page
+│   └── login.html        # Login/register page
+├── static/
+│   └── bg.jpg            # Background wallpaper
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── windows/              # Windows desktop mode (archived)
+    ├── main.py
+    ├── screenshot.py
+    ├── lcu_client.py
+    ├── launch.bat
+    └── requirements.txt
 ```
 
-## 🎮 How to Use
+## Data Sources
 
-1. After launching, a floating `[⚔️ Analyze | 📋 Guide]` button appears at the top-left corner
-2. On the ARAM loading screen, click **⚔️ Analyze**
-3. Wait 15-30 seconds for AI analysis, then the guide overlay pops up automatically
-4. Press **Ctrl+F12** to toggle the guide overlay anytime
+- **[ApexLol.info](https://apexlol.info)** — Hextech augment synergy data (7-day cache)
+- **[op.gg](https://op.gg)** — Hextech augment pick/win rates (2-hour cache)
+- **[CommunityDragon](https://communitydragon.org)** — Augment metadata (icons/rarity)
+- **[Riot Data Dragon](https://developer.riotgames.com/docs/lol)** — Champion icons
 
-## 🌐 Language Switch
+## Disclaimer
 
-Edit `config.py` and change the `LANGUAGE` value:
+- This is a personal learning project with no guarantee of accuracy
+- Not affiliated with or endorsed by Riot Games or League of Legends
+- WebUI mode does not read or modify any game data; it only provides reference suggestions
+- Please comply with the game's terms of service
 
-```python
-LANGUAGE = "zh"   # Chinese (default)
-LANGUAGE = "en"   # English
-```
-
-This changes the UI text, console messages, and AI analysis language.
-
-## 📁 File Structure
-
-| File | Description |
-|------|-------------|
-| `main.py` | Main entry, floating button & overlay |
-| `config.py` | Config (API key, language, UI) |
-| `lang.py` | i18n strings & prompts (zh/en) |
-| `screenshot.py` | Screenshot module |
-| `gemini_analyzer.py` | Gemini API module (with SSL auto-retry) |
-| `apexlol_scraper.py` | ApexLol.info data scraper |
-| `apexlol_data.py` | Data cache management & queries |
-| `launch.bat` | Windows launch script |
-
-## 🔧 Requirements
-
-- **OS**: Windows 10/11
-- **Python**: 3.10+
-- **Network**: Access to Google Gemini API
-- **Game**: League of Legends (any region)
-
-## 📝 Notes
-
-- Trigger analysis on the **loading screen** (when all champion cards are visible)
-- Each analysis takes ~15-30 seconds depending on network and API response
-- Right-click drag to reposition the floating button
-- Press Esc to hide the guide overlay, click 📋 to show it again
-
-## 📊 Data Source Acknowledgment
-
-Hextech augment recommendation data in this tool is sourced from **[ApexLol.info](https://apexlol.info)**.
-
-- Data is only fetched when the user **manually clicks the 🔄 Data button**, never automatically
-- Request frequency is throttled (0.4s delay between requests) to minimize server load
-- Data is cached locally for 7 days to avoid redundant requests
-- This project has **no official affiliation** with ApexLol.info. All data copyrights belong to ApexLol.info and its data providers
-- If the operators of ApexLol.info have concerns about this project's data usage, please contact us via GitHub Issues and we will address it immediately
-
-## ⚠️ Disclaimer
-
-- This tool is a personal learning project, provided for reference only, with no guarantee of analysis accuracy
-- This tool is not affiliated with or endorsed by Riot Games or League of Legends
-- This tool **does not read or modify any game data**. It only takes a screenshot of your screen and uses AI to provide reference suggestions. However, Riot may still flag third-party tools as violations. **Use this tool at your own risk and be aware of potential account penalties**
-- Please comply with the game's terms of service when using this tool
-
-## 📄 License
+## License
 
 MIT
