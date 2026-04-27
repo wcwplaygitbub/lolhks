@@ -64,7 +64,7 @@ python -m uvicorn webui:app --host 0.0.0.0 --port 8000
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `GEMINI_API_KEY` | (必填) | Gemini API 密钥 |
+| `GEMINI_API_KEY` | (可选) | Gemini API 密钥 |
 | `LLM_PROVIDER` | `gemini` | 文本分析模型：`gemini` / `glm` / `minimax` / `openai` |
 | `GEMINI_MODEL` | `gemini-3.1-flash-lite-preview` | Gemini 模型名 |
 | `INVITE_BASE_URL` | (空) | 邀请链接前缀，如 `https://aram.example.com` |
@@ -97,12 +97,6 @@ lolhks/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
-└── windows/              # Windows 桌面模式（已归档）
-    ├── main.py
-    ├── screenshot.py
-    ├── lcu_client.py
-    ├── launch.bat
-    └── requirements.txt
 ```
 
 ## 数据来源
