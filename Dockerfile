@@ -18,12 +18,10 @@ RUN apt-get update \
 
 # 先拷依赖清单利用缓存
 COPY requirements.txt ./
-# WebUI 子集：剔除 pynput/mss（Windows 悬浮窗用，Linux 容器不需要，evdev 还要 kernel headers）
-RUN grep -Ev '^(pynput|mss)\b' requirements.txt > requirements.web.txt \
-    && pip install --no-cache-dir \
+RUN pip install --no-cache-dir \
         -i https://pypi.tuna.tsinghua.edu.cn/simple \
         --trusted-host pypi.tuna.tsinghua.edu.cn \
-        -r requirements.web.txt
+        -r requirements.txt
 
 # 拷贝源代码
 COPY . .

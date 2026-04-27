@@ -21,6 +21,7 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - AUTH_SECRET=${AUTH_SECRET:-}
+      - INVITE_BASE_URL=${INVITE_BASE_URL:-}
     volumes:
       # 持久化英雄图标 + apexlol 英雄缓存，避免每次重建都重拉
       - ./static:/app/static

@@ -16,16 +16,16 @@ log = logging.getLogger("ARAM")
 CHAMPION_ALIASES = {
     # ===== A =====
     "阿卡丽": "Akali", "阿克尚": "Akshan", "阿利斯塔": "Alistar", "阿木木": "Amumu",
-    "阿尼维亚": "Anivia", "冰鸟": "Anivia", "安妮": "Annie", "火女": "Annie",
+    "阿尼维亚": "Anivia", "艾尼维亚": "Anivia", "冰鸟": "Anivia", "安妮": "Annie", "火女": "Annie",
     "阿菲利奥斯": "Aphelios", "艾瑞莉娅": "Irelia",
     "艾希": "Ashe", "寒冰": "Ashe", "寒冰射手": "Ashe",
-    "奥恩": "Ornn", "奥拉夫": "Olaf", "奥瑞利安索尔": "AurelionSol",
-    "奥莉安娜": "Orianna", "阿兹尔": "Azir", "艾克": "Ekko", "安贝萨": "Ambessa",
-    "艾翁": "Ivern", "阿狸": "Ahri", "狐狸": "Ahri",
+    "奥恩": "Ornn", "奥拉夫": "Olaf", "奥瑞利安索尔": "AurelionSol", "奥瑞利安·索尔": "AurelionSol",
+    "奥莉安娜": "Orianna", "阿兹尔": "Azir", "艾克": "Ekko", "安贝萨": "Ambessa", "安蓓萨": "Ambessa",
+    "艾翁": "Ivern", "阿狸": "Ahri", "狐狸": "Ahri", "阿萝拉": "Aurora",
     "哭哭": "Amumu",
     # ===== B =====
-    "巴德": "Bard", "贝尔维斯": "Belveth", "布兰德": "Brand", "布隆": "Braum",
-    "布里茨": "Blitzcrank", "波比": "Poppy", "豹女": "Nidalee",
+    "巴德": "Bard", "贝尔维斯": "Belveth", "卑尔维斯": "Belveth", "布兰德": "Brand", "布隆": "Braum",
+    "布里茨": "Blitzcrank", "波比": "Poppy", "豹女": "Nidalee", "贝蕾亚": "Briar",
     "盲僧": "LeeSin",
     # ===== C =====
     "铸星龙王": "AurelionSol",
@@ -35,12 +35,12 @@ CHAMPION_ALIASES = {
     "迪亚娜": "Diana", "黛安娜": "Diana",
     # ===== E =====
     "厄斐琉斯": "Aphelios", "俄洛伊": "Illaoi",
-    "厄运小姐": "MissFortune",
+    "厄运小姐": "MissFortune", "厄加特": "Urgot",
     # ===== F =====
     "菲奥娜": "Fiora", "菲兹": "Fizz", "费德提克": "Fiddlesticks",
     "弗拉基米尔": "Vladimir", "弗雷尔卓德之心": "Braum",
     # ===== G =====
-    "甘普朗克": "Gangplank", "船长": "Gangplank", "橘子": "Gangplank",
+    "甘普朗克": "Gangplank", "船长": "Gangplank", "橘子": "Gangplank", "普朗克": "Gangplank",
     "盖伦": "Garen", "格雷福斯": "Graves", "格温": "Gwen",
     "古拉加斯": "Gragas", "纳尔": "Gnar",
     "加里奥": "Galio",
@@ -63,6 +63,7 @@ CHAMPION_ALIASES = {
     "科加斯": "Chogath", "克烈": "Kled", "奎因": "Quinn", "克格莫": "KogMaw",
     "寇格": "KogMaw", "凯特灵": "Caitlyn",
     "卡兹克": "Khazix", "螳螂": "Khazix",
+    "卡尔萨斯": "Karthus", "卡莉丝塔": "Kalista", "奎桑提": "KSante",
     # ===== L =====
     "拉克丝": "Lux", "拉莫斯": "Rammus", "兰博": "Rumble", "乐芙兰": "Leblanc",
     "雷克塞": "RekSai", "雷克顿": "Renekton", "雷恩加尔": "Rengar", "李青": "LeeSin",
@@ -74,12 +75,12 @@ CHAMPION_ALIASES = {
     "冒险家": "Ezreal", "美杜莎": "Cassiopeia",
     "梦魇": "Nocturne", "蒙多": "DrMundo", "蒙多医生": "DrMundo",
     "魔腾": "Nocturne", "莫甘娜": "Morgana", "莫德凯撒": "Mordekaiser", "铁铠冥魂": "Mordekaiser",
-    "墨菲特": "Malphite", "沐恩": "Milio", "微光": "Milio",
+    "墨菲特": "Malphite", "沐恩": "Milio", "微光": "Milio", "米利欧": "Milio", "茂凯": "Maokai",
     "男枪": "Graves", "猫咪": "Yuumi", "木木": "Amumu",
     # ===== N =====
     "内瑟斯": "Nasus", "娜美": "Nami", "奈德丽": "Nidalee",
     "妮蔻": "Neeko", "诺克萨斯之手": "Darius", "诺手": "Darius", "小手": "Darius",
-    "努努": "Nunu", "女枪": "MissFortune", "奶妈": "Soraka",
+    "努努": "Nunu", "努努和威朗普": "Nunu", "女枪": "MissFortune", "奶妈": "Soraka",
     "鸟人": "Quinn",
     # ===== O =====
     "欧拉夫": "Olaf",
@@ -93,26 +94,26 @@ CHAMPION_ALIASES = {
     "瑞兹": "Ryze", "瑞文": "Riven", "锐雯": "Riven", "芮尔": "Rell",
     "人马": "Hecarim", "瑞尔": "Rell",
     # ===== S =====
-    "赛恩": "Sion", "赛拉斯": "Sylas", "赛娜": "Senna", "塞拉芬妮": "Seraphine",
-    "萨勒芬妮": "Seraphine", "塞特": "Sett", "沙漠皇帝": "Azir",
+    "赛恩": "Sion", "赛拉斯": "Sylas", "塞拉斯": "Sylas", "赛娜": "Senna", "塞拉芬妮": "Seraphine",
+    "萨勒芬妮": "Seraphine", "塞特": "Sett", "瑟提": "Sett", "沙漠皇帝": "Azir",
     "莎弥拉": "Samira",
     "慎": "Shen", "石头人": "Malphite", "狮子狗": "Rengar",
     "斯卡纳": "Skarner", "斯维因": "Swain", "乌鸦": "Swain", "索拉卡": "Soraka", "孙悟空": "MonkeyKing",
     "松果": "Ivern", "索恩": "Sion", "日女": "Leona", "曙光": "Leona", "死歌": "Karthus",
     "星妈": "Soraka", "瞎子": "LeeSin", "瞎": "LeeSin",
-    "深海泰坦": "Nautilus",
+    "深海泰坦": "Nautilus", "诺提勒斯": "Nautilus",
     "时光老人": "Zilean", "时光": "Zilean",
     "稻草人": "Fiddlesticks",
     # ===== T =====
     "塔里克": "Taric", "塔姆": "TahmKench", "塔莉垭": "Taliyah",
-    "泰达米尔": "Tryndamere", "泰坦": "Nautilus",
+    "泰达米尔": "Tryndamere", "泰坦": "Nautilus", "泰隆": "Talon",
     "探险家": "Ezreal", "提莫": "Teemo", "铁男": "Mordekaiser",
     "铁铠冥魂": "Mordekaiser",
     "图奇": "Twitch", "崔斯特": "TwistedFate", "崔丝塔娜": "Tristana",
     "特朗德尔": "Trundle", "陶器": "Galio",
     # ===== V/W =====
     "薇古丝": "Vex", "薇": "Vi", "维克托": "Viktor", "维克兹": "VelKoz",
-    "维嘉": "Veigar", "小法": "Veigar", "小法师": "Veigar",
+    "维嘉": "Veigar", "维迦": "Veigar", "小法": "Veigar", "小法师": "Veigar",
     "韦鲁斯": "Varus", "蔚": "Vi", "沃里克": "Warwick",
     "乌迪尔": "Udyr",
     "沃利贝尔": "Volibear", "狗熊": "Volibear",
@@ -126,13 +127,13 @@ CHAMPION_ALIASES = {
     # ===== Y =====
     "亚索": "Yasuo", "快乐风男": "Yasuo", "亚托克斯": "Aatrox",
     "伊芙琳": "Evelynn", "寡妇": "Evelynn",
-    "伊泽瑞尔": "Ezreal",
+    "伊泽瑞尔": "Ezreal", "佛耶戈": "Viego",
     "易": "MasterYi", "易大师": "MasterYi", "剑圣": "MasterYi",
     "永恩": "Yone", "约里克": "Yorick", "约德尔": None, "尤米": "Yuumi",
     "悠米": "Yuumi", "瑶": "Lillia", "影流之主": "Zed",
     "永岚": "YongLan",
     # ===== Z =====
-    "扎克": "Zac", "泽拉斯": "Xerath",
+    "扎克": "Zac", "泽拉斯": "Xerath", "泽丽": "Zeri",
     "赵信": "XinZhao", "蜘蛛女皇": "Elise", "蜘蛛": "Elise", "猪妹": "Sejuani",
     "炸弹人": "Ziggs",
     "祖安怒兽": "Warwick",
@@ -144,6 +145,14 @@ CHAMPION_ALIASES = {
     "不破之誓": "Yunara", "芸阿娜": "Yunara", "云阿娜": "Yunara",
     "极光": "Aurora", "奥罗拉": "Aurora", "欧若拉": "Aurora", "双界灵兔": "Aurora",
     "斯莫德": "Smolder", "小龙": "Smolder",
+    "亚恒": "Zaahen",
+    "彗": "Hwei",
+    "梅尔": "Mel",
+    "纳亚菲利": "Naafiri",
+    # ===== 官方中文名补全 =====
+    "娑娜": "Sona", "尼菈": "Nilah", "库奇": "Corki", "吉格斯": "Ziggs",
+    "基兰": "Zilean", "萨科": "Shaco", "蕾欧娜": "Leona", "迦娜": "Janna",
+    "烈娜塔 · 戈拉斯克": "Renata", "烈娜塔": "Renata",
     # ===== 英文简称 =====
     "EZ": "Ezreal", "ez": "Ezreal", "VN": "Vayne", "vn": "Vayne",
     "TF": "TwistedFate", "tf": "TwistedFate",

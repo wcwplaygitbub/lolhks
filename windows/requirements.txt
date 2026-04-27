@@ -1,0 +1,5 @@
+# Windows 桌面模式额外依赖
+# 与项目根目录的 requirements.txt 配合使用
+mss
+pynput
+psutil

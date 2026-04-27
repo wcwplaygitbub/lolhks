@@ -97,7 +97,7 @@ def analyze_rune_builds(champion_name: str, num_builds: int = 4) -> str:
         return err
 
 
-# ==================== 前瞻（桌面浮窗用，保留） ====================
+# ==================== 前瞻 ====================
 def analyze_champion_quick_guide(champion_name: str) -> str:
     """开局前极速前瞻：英雄名 → 数据驱动的海克斯+AI 出装（纯文本）。"""
     try:

@@ -2,7 +2,6 @@
 """ARAM 助手 - 配置文件 (模板)"""
 
 import os
-import sys
 
 # ==================== 语言配置 ====================
 # "zh" = 中文 (Chinese)
@@ -33,22 +32,8 @@ OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
-# ==================== 热键配置 ====================
-TOGGLE_HOTKEY = "Ctrl+F12"    # 切换悬浮窗显示/隐藏
-
-# ==================== UI 配置 ====================
-OVERLAY_BG_COLOR = "#1a1a2e"
-OVERLAY_FG_COLOR = "#e0e0e0"
-OVERLAY_ACCENT_COLOR = "#00d4ff"
-OVERLAY_TITLE_COLOR = "#ffd700"
-OVERLAY_WIDTH = 520
-OVERLAY_MAX_HEIGHT = 750
-OVERLAY_FONT_FAMILY = "Microsoft YaHei UI"
-OVERLAY_FONT_SIZE = 11
-OVERLAY_OPACITY = 0.92
-
-# ==================== 截图配置 ====================
-SCREENSHOT_DIR = os.path.join(os.path.dirname(__file__), "screenshots")
+# ==================== 邀请链接 ====================
+INVITE_BASE_URL = os.environ.get("INVITE_BASE_URL", "")  # 例如 https://aram.example.com
 
 # ==================== ApexLol 数据增强 ====================
 APEXLOL_ENABLED = True                 

@@ -1,10 +1,7 @@
 google-genai
-mss
-pynput
 Pillow
 requests
 beautifulsoup4
-# WebUI
 fastapi
 uvicorn[standard]
 python-multipart

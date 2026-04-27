@@ -93,7 +93,16 @@
     history.replaceState({}, '', '/' + m);
   }
   tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)));
-  setMode('{{MODE}}' === 'register' ? 'register' : 'login');
+
+  // 从 URL 参数自动填入邀请码（必须在 setMode 之前读取，因为 setMode 会清掉 URL 参数）
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteCode = urlParams.get('code');
+
+  setMode('{{MODE}}' === 'register' || inviteCode ? 'register' : 'login');
+
+  if (inviteCode) {
+    document.getElementById('reg-code').value = inviteCode;
+  }
 
   function showErr(text) { msg.className = 'msg err'; msg.textContent = text; }
   function showOk(text) { msg.className = 'msg ok'; msg.textContent = text; }

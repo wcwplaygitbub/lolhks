@@ -52,6 +52,7 @@ def api_config():
     return {
         "llm_provider": _cfg("LLM_PROVIDER", "gemini"),
         "language": _cfg("LANGUAGE", "zh"),
+        "invite_base_url": _cfg("INVITE_BASE_URL", ""),
     }
 
 
