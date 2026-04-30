@@ -71,6 +71,18 @@ def _warmup_icons():
         ensure_champion_icons()
     except Exception as e:
         log.warning(f"champion icons warmup failed: {e}")
+    # 预热天赋描述缓存（后台线程，不阻塞启动）
+    try:
+        from cdragon_augments import warmup_cache
+        warmup_cache(config.APEXLOL_CACHE_DIR)
+    except Exception as e:
+        log.warning(f"augment descriptions warmup failed: {e}")
+    # 预热装备描述缓存（后台线程，不阻塞启动）
+    try:
+        from cdragon_items import warmup_cache as warmup_items
+        warmup_items(config.APEXLOL_CACHE_DIR)
+    except Exception as e:
+        log.warning(f"item descriptions warmup failed: {e}")
 
 
 # ==================== 海克斯符文套装玩法（直连 apexlol，无 AI） ====================
@@ -94,6 +106,28 @@ def api_rune_data(req: RuneDataReq):
         data = extract_top_synergies_json(name, top_n=n)
         if not data.get("builds") and not data.get("trap_warnings"):
             return JSONResponse({"ok": False, "error": f"暂无「{name}」的联动数据"}, status_code=404)
+        # 注入天赋描述数据
+        try:
+            from cdragon_augments import get_augment_descriptions
+            descs = get_augment_descriptions(config.APEXLOL_CACHE_DIR)
+            data["hextech_descriptions"] = {
+                str(aug_id): {
+                    "name": info["name"],
+                    "description": info.get("description", ""),
+                    "icon_url": info.get("icon_url", ""),
+                    "rarity": info["rarity"],
+                }
+                for aug_id, info in descs.items()
+                if info.get("description")
+            }
+        except Exception as e:
+            log.warning(f"augment descriptions injection failed: {e}")
+        # 注入装备描述数据
+        try:
+            from cdragon_items import get_item_descriptions_by_name
+            data["item_descriptions"] = get_item_descriptions_by_name(config.APEXLOL_CACHE_DIR)
+        except Exception as e:
+            log.warning(f"item descriptions injection failed: {e}")
         return {"ok": True, "source": info, **data}
     except Exception as e:
         log.exception("rune_data failed")
@@ -118,6 +152,28 @@ def api_opgg_mayhem(req: OpggReq):
         data = fetch_aram_mayhem(name)
         if not data.get("ok"):
             return JSONResponse(data, status_code=404)
+        # 注入天赋描述数据
+        try:
+            from cdragon_augments import get_augment_descriptions
+            descs = get_augment_descriptions(config.APEXLOL_CACHE_DIR)
+            data["hextech_descriptions"] = {
+                str(aug_id): {
+                    "name": info["name"],
+                    "description": info.get("description", ""),
+                    "icon_url": info.get("icon_url", ""),
+                    "rarity": info["rarity"],
+                }
+                for aug_id, info in descs.items()
+                if info.get("description")
+            }
+        except Exception as e:
+            log.warning(f"augment descriptions injection failed: {e}")
+        # 注入装备描述数据
+        try:
+            from cdragon_items import get_item_descriptions_by_name
+            data["item_descriptions"] = get_item_descriptions_by_name(config.APEXLOL_CACHE_DIR)
+        except Exception as e:
+            log.warning(f"item descriptions injection failed: {e}")
         return data
     except Exception as e:
         log.exception("opgg_mayhem failed")

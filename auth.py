@@ -39,7 +39,7 @@ _DB_PATH = _DATA_DIR / "auth.db"
 _SECRET_PATH = _DATA_DIR / "auth.secret"
 
 COOKIE_NAME = "aram_session"
-SESSION_TTL = 7 * 24 * 3600  # 7 天
+SESSION_TTL = 1 * 24 * 3600  # 1 天
 PBKDF2_ITERS = 100_000
 
 # 白名单：不需要登录的路径（前缀匹配）

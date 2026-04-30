@@ -168,8 +168,30 @@
   .build.trap .hex { border-color:#5a2030; color:#ffb3c1; }
   .section-label { font-size:12px; color:var(--muted); margin-top:4px; }
   .items { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .item { display:flex; align-items:center; gap:5px; background:#0f1426; border:1px solid var(--border); padding:3px 8px 3px 3px; border-radius:6px; font-size:12px; color:#cfd4e3; }
+  .item { display:flex; align-items:center; gap:5px; background:#0f1426; border:1px solid var(--border); padding:3px 8px 3px 3px; border-radius:6px; font-size:12px; color:#cfd4e3; position: relative; cursor: default; }
   .item img { width:24px; height:24px; border-radius:4px; background:#000; object-fit:cover; }
+  /* 内嵌 tooltip 内容模板（不直接显示，由 JS 复制到浮动层） */
+  .item-tooltip, .hex-tooltip, .aug-tooltip { display: none; }
+  .item-tooltip .tt-name { color: #c89b3c; font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .item-tooltip .tt-price { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .item-tooltip .tt-desc { color: #d0d4e8; }
+  /* 全局浮动 tooltip 层 */
+  #float-tooltip, #float-aug-tooltip {
+    position: fixed; z-index: 999; display: none;
+    min-width: 240px; max-width: 360px;
+    background: rgba(12,16,32,0.96); backdrop-filter: blur(10px);
+    border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.6;
+    color: #c9cde0; pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #float-tooltip { border: 1px solid #c89b3c; box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(200,155,60,0.15); }
+  #float-aug-tooltip { border: 1px solid var(--accent); box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(0,212,255,0.1); }
+  #float-tooltip .tt-name, #float-aug-tooltip .tt-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  #float-tooltip .tt-name { color: #c89b3c; }
+  #float-aug-tooltip .tt-name { color: var(--gold); }
+  #float-tooltip .tt-price { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  #float-tooltip .tt-desc, #float-aug-tooltip .tt-desc { color: #d0d4e8; }
   .arrow { color:var(--muted); font-size:14px; }
   .analysis { font-size:13px; line-height:1.55; color:#c9cde0; white-space:pre-wrap; }
 
@@ -188,6 +210,10 @@
   .rarity-kPrismatic { background:#3a1a3e; color:#d8a8ff; }
   .aug-row .aug-stats { font-size:11px; color:var(--muted); margin-top:3px; }
   .aug-row .aug-stats .wr { color:#7fd19c; font-weight:600; }
+
+  /* 海克斯天赋描述 tooltip */
+  .aug-row { position: relative; }
+  .hex { position: relative; cursor: default; }
 
   /* 通用 */
   .spinner {
@@ -440,6 +466,16 @@
   // 联动方案渲染
   function renderBuilds(data) {
     const esc = s => (s || '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    // 构建描述查找索引：ID 优先，中文名回退
+    const hextechDescs = data.hextech_descriptions || {};
+    const descByName = {};
+    const descByIcon = {};
+    for (const [id, info] of Object.entries(hextechDescs)) {
+      if (info.name) descByName[info.name] = info.description || '';
+      if (info.icon_url) descByIcon[info.icon_url] = info.description || '';
+    }
+    // 装备描述查找索引：按中文名
+    const itemDescs = data.item_descriptions || {};
     const renderCard = (b, idx, isTrap) => {
       const rating = esc(b.rating || '');
       const ratingCls = 'rating-badge rating-' + (rating.match(/S+|[ABCD]/)?.[0] || '');
@@ -448,13 +484,27 @@
         const tier = (b.tiers || [])[i] || '';
         const imgHtml = icon ? `<img src="${esc(icon)}" alt="${esc(h)}" loading="lazy" onerror="this.style.display='none'">` : '';
         const tierHtml = tier ? `<span class="tier-sm">${esc(tier)}</span>` : '';
-        return `<span class="hex">${imgHtml}<span class="name">${esc(h)}</span>${tierHtml}</span>`;
+        // 查找描述：优先图标 URL 精确匹配，回退中文名匹配
+        let desc = icon ? (descByIcon[icon] || '') : '';
+        if (!desc && h) desc = descByName[h] || '';
+        const tooltipHtml = desc
+          ? `<div class="hex-tooltip"><div class="tt-name">${esc(h)}</div><div class="tt-desc">${esc(desc)}</div></div>`
+          : '';
+        return `<span class="hex">${imgHtml}<span class="name">${esc(h)}</span>${tierHtml}${tooltipHtml}</span>`;
       }).join('');
       const items = (b.items || []).length
         ? (b.items || []).map((it, i) => {
             const icon = (b.item_icons || [])[i];
             const imgHtml = icon ? `<img src="${esc(icon)}" alt="${esc(it)}" loading="lazy" onerror="this.style.display='none'">` : '';
-            return (i > 0 ? '<span class="arrow">→</span>' : '') + `<span class="item">${imgHtml}<span>${esc(it)}</span></span>`;
+            // 查找装备描述
+            const itemInfo = itemDescs[it];
+            const itemDesc = itemInfo ? itemInfo.description : '';
+            const itemPrice = itemInfo ? itemInfo.price : '';
+            const priceHtml = itemPrice ? `<div class="tt-price">💰 ${itemPrice} 金币</div>` : '';
+            const tooltipHtml = itemDesc
+              ? `<div class="item-tooltip"><div class="tt-name">${esc(it)}</div>${priceHtml}<div class="tt-desc">${esc(itemDesc)}</div></div>`
+              : '';
+            return (i > 0 ? '<span class="arrow">→</span>' : '') + `<span class="item">${imgHtml}<span>${esc(it)}</span>${tooltipHtml}</span>`;
           }).join('')
         : '<span class="section-label">（无推荐出装数据）</span>';
       const label = isTrap ? '⚠️ 陷阱' : (b.tag || '');
@@ -500,21 +550,31 @@
     const esc = s => (s == null ? '' : String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])));
     const img = (url, alt='') => url ? `<img src="${esc(url)}" alt="${esc(alt)}" title="${esc(alt)}" loading="lazy" onerror="this.style.display='none'">` : '';
     const rarityLabel = r => ({kPrismatic:'棱彩', kGold:'金', kSilver:'银'})[r] || r.replace('k','');
-    const augs = (d.augments || []).map(a => `
-      <div class="aug-row">
+    const hextechDescs = d.hextech_descriptions || {};
+    const augs = (d.augments || []).map(a => {
+      // 通过 augment ID 查找描述
+      const descInfo = hextechDescs[String(a.id)];
+      const desc = descInfo ? descInfo.description : '';
+      const tooltipHtml = desc
+        ? `<div class="aug-tooltip"><div class="tt-name">${esc(a.name)}</div><div class="tt-desc">${esc(desc)}</div></div>`
+        : '';
+      return `
+      <div class="aug-row" data-aug-id="${a.id}">
         ${img(a.icon_url, a.name)}
         <div class="aug-main">
           <div class="aug-name">${esc(a.name)}<span class="aug-rarity rarity-${esc(a.rarity)}">${esc(rarityLabel(a.rarity))}</span></div>
           <div class="aug-stats">选取 ${a.pick_rate}% · <span class="wr">胜 ${a.win_rate != null ? a.win_rate+'%' : '—'}</span>${a.avg_place != null ? ` · 平均名次 ${a.avg_place}` : ''}</div>
         </div>
-      </div>`).join('');
+        ${tooltipHtml}
+      </div>`;
+    }).join('');
     const cachedTag = d.cached ? '<span class="sub" style="color:#7fd19c">· 缓存命中</span>' : '';
     return `
       <div class="aug-head">
         <h2>🎁 海克斯强化</h2>
         <span class="sub">补丁 ${esc(d.version || '?')} ${cachedTag}</span>
       </div>
-      <div class="sub" style="margin-bottom:8px; color:var(--muted); font-size:11px;">按选取率排序</div>
+      <div class="sub" style="margin-bottom:8px; color:var(--muted); font-size:11px;">按选取率排序 · 悬停查看详情</div>
       ${augs || '<div class="placeholder">暂无数据</div>'}
     `;
   }
@@ -526,10 +586,75 @@
     setApexLoading('查询 ' + name + ' 联动方案');
     setAugLoading('查询 ' + name + ' 海克斯强化');
     postJson('/api/rune_data', {champion: name, num_builds: 12}).then(d => {
-      if (d.ok) renderBuilds(d); else showError(apexEl, d.error || '方案请求失败');
+      if (d.ok) {
+        renderBuilds(d);
+        // 装备/hex tooltip 定位（使用全局浮动层，不受 overflow/transform 裁剪）
+        let _ttEl = null;
+        apexEl.querySelectorAll('.item, .hex').forEach(el => {
+          el.addEventListener('mouseenter', () => {
+            const src = el.querySelector('.item-tooltip, .hex-tooltip');
+            if (!src) return;
+            if (!_ttEl) {
+              _ttEl = document.createElement('div');
+              _ttEl.id = 'float-tooltip';
+              document.body.appendChild(_ttEl);
+            }
+            _ttEl.innerHTML = src.innerHTML;
+            _ttEl.className = src.className;
+            _ttEl.style.display = 'block';
+            const parentRect = el.getBoundingClientRect();
+            // 先显示以获取尺寸
+            const ttRect = _ttEl.getBoundingClientRect();
+            let left = parentRect.left + parentRect.width / 2 - ttRect.width / 2;
+            let top = parentRect.bottom + 4;
+            if (left < 4) left = 4;
+            if (left + ttRect.width > window.innerWidth - 4) left = window.innerWidth - ttRect.width - 4;
+            if (top + ttRect.height > window.innerHeight - 4) top = parentRect.top - ttRect.height - 4;
+            _ttEl.style.left = left + 'px';
+            _ttEl.style.top = top + 'px';
+          });
+          el.addEventListener('mouseleave', () => {
+            if (_ttEl) _ttEl.style.display = 'none';
+          });
+        });
+      } else {
+        showError(apexEl, d.error || '方案请求失败');
+      }
     }).catch(e => showError(apexEl, e.message));
     postJson('/api/augments', {champion: name}).then(d => {
-      if (d.ok) augEl.innerHTML = renderAugments(d); else showError(augEl, d.error || '海克斯强化请求失败');
+      if (d.ok) {
+        augEl.innerHTML = renderAugments(d);
+        // 天赋 tooltip 定位（使用全局浮动层，不受 overflow/transform 裁剪）
+        let _augTtEl = null;
+        augEl.querySelectorAll('.aug-row').forEach(row => {
+          row.addEventListener('mouseenter', () => {
+            const src = row.querySelector('.aug-tooltip');
+            if (!src) return;
+            if (!_augTtEl) {
+              _augTtEl = document.createElement('div');
+              _augTtEl.id = 'float-aug-tooltip';
+              document.body.appendChild(_augTtEl);
+            }
+            _augTtEl.innerHTML = src.innerHTML;
+            _augTtEl.className = src.className;
+            _augTtEl.style.display = 'block';
+            const parentRect = row.getBoundingClientRect();
+            const ttRect = _augTtEl.getBoundingClientRect();
+            let left = parentRect.left + parentRect.width / 2 - ttRect.width / 2;
+            let top = parentRect.bottom + 4;
+            if (left < 4) left = 4;
+            if (left + ttRect.width > window.innerWidth - 4) left = window.innerWidth - ttRect.width - 4;
+            if (top + ttRect.height > window.innerHeight - 4) top = parentRect.top - ttRect.height - 4;
+            _augTtEl.style.left = left + 'px';
+            _augTtEl.style.top = top + 'px';
+          });
+          row.addEventListener('mouseleave', () => {
+            if (_augTtEl) _augTtEl.style.display = 'none';
+          });
+        });
+      } else {
+        showError(augEl, d.error || '海克斯强化请求失败');
+      }
     }).catch(e => showError(augEl, e.message));
   }
 
