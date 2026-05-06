@@ -535,9 +535,10 @@
         <span class="sub">共 ${data.builds.length} 套方案${data.trap_warnings?.length ? ` · ${data.trap_warnings.length} 个陷阱警告` : ''}</span>
       </div>
     `;
+    const emptyMessage = data.message || '暂无正常方案数据';
     const buildsHtml = data.builds.length
       ? `<div class="build-grid">${data.builds.map((b,i) => renderCard(b, i, false)).join('')}</div>`
-      : '<div class="placeholder">暂无正常方案数据</div>';
+      : `<div class="placeholder">${esc(emptyMessage)}</div>`;
     const trapsHtml = data.trap_warnings?.length
       ? `<div class="build-header"><h2 style="color:#ff8a9a">❌ 陷阱警告</h2><span class="sub">这些组合胜率偏低，建议避开</span></div>
          <div class="build-grid">${data.trap_warnings.map((b,i) => renderCard(b, i, true)).join('')}</div>`

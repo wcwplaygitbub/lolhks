@@ -90,11 +90,286 @@ def get_champion_list() -> list[dict]:
     return unique
 
 
-def scrape_champion(champion_id: str) -> dict:
+def _find_matching_js(source: str, start: int, opener: str, closer: str) -> int:
+    depth = 0
+    quote = ""
+    escaped = False
+    for idx in range(start, len(source)):
+        ch = source[idx]
+        if quote:
+            if escaped:
+                escaped = False
+                continue
+            if ch == "\\":
+                escaped = True
+                continue
+            if ch == quote:
+                quote = ""
+            continue
+        if ch in ('"', "'", "`"):
+            quote = ch
+            continue
+        if ch == opener:
+            depth += 1
+        elif ch == closer:
+            depth -= 1
+            if depth == 0:
+                return idx
+    return -1
+
+
+class _JsLiteralParser:
+    def __init__(self, source: str):
+        self.source = source
+        self.pos = 0
+
+    def parse(self):
+        value = self._parse_value()
+        return value
+
+    def _skip_ws(self):
+        while self.pos < len(self.source) and self.source[self.pos].isspace():
+            self.pos += 1
+
+    def _parse_value(self):
+        self._skip_ws()
+        if self.pos >= len(self.source):
+            return None
+        ch = self.source[self.pos]
+        if ch == "{":
+            return self._parse_object()
+        if ch == "[":
+            return self._parse_array()
+        if ch in ('"', "'", "`"):
+            return self._parse_string(ch)
+        if self.source.startswith("!0", self.pos):
+            self.pos += 2
+            return True
+        if self.source.startswith("!1", self.pos):
+            self.pos += 2
+            return False
+        for literal in ("true", "false", "null", "undefined"):
+            if self.source.startswith(literal, self.pos):
+                self.pos += len(literal)
+                return {"true": True, "false": False}.get(literal)
+        token = self._read_token()
+        if re.fullmatch(r"-?\d+(\.\d+)?", token or ""):
+            return float(token) if "." in token else int(token)
+        return token
+
+    def _parse_object(self):
+        obj = {}
+        self.pos += 1
+        while True:
+            self._skip_ws()
+            if self.pos >= len(self.source):
+                return obj
+            if self.source[self.pos] == "}":
+                self.pos += 1
+                return obj
+            key = self._parse_key()
+            self._skip_ws()
+            if self.pos < len(self.source) and self.source[self.pos] == ":":
+                self.pos += 1
+                obj[key] = self._parse_value()
+            self._skip_ws()
+            if self.pos < len(self.source) and self.source[self.pos] == ",":
+                self.pos += 1
+
+    def _parse_array(self):
+        arr = []
+        self.pos += 1
+        while True:
+            self._skip_ws()
+            if self.pos >= len(self.source):
+                return arr
+            if self.source[self.pos] == "]":
+                self.pos += 1
+                return arr
+            arr.append(self._parse_value())
+            self._skip_ws()
+            if self.pos < len(self.source) and self.source[self.pos] == ",":
+                self.pos += 1
+
+    def _parse_key(self):
+        self._skip_ws()
+        if self.source[self.pos] in ('"', "'", "`"):
+            return self._parse_string(self.source[self.pos])
+        return self._read_token()
+
+    def _parse_string(self, quote: str):
+        self.pos += 1
+        chars = []
+        escaped = False
+        while self.pos < len(self.source):
+            ch = self.source[self.pos]
+            self.pos += 1
+            if escaped:
+                chars.append({"n": "\n", "r": "\r", "t": "\t"}.get(ch, ch))
+                escaped = False
+                continue
+            if ch == "\\":
+                escaped = True
+                continue
+            if ch == quote:
+                return "".join(chars)
+            chars.append(ch)
+        return "".join(chars)
+
+    def _read_token(self):
+        start = self.pos
+        while self.pos < len(self.source):
+            ch = self.source[self.pos]
+            if ch.isspace() or ch in ",:]}{[":
+                break
+            self.pos += 1
+        return self.source[start:self.pos]
+
+
+def _extract_js_array(source: str, variable_name: str) -> list:
+    match = re.search(rf"\b{re.escape(variable_name)}=", source)
+    if not match:
+        return []
+    start = source.find("[", match.end())
+    if start < 0:
+        return []
+    end = _find_matching_js(source, start, "[", "]")
+    if end < 0:
+        return []
+    return _JsLiteralParser(source[start:end + 1]).parse() or []
+
+
+def _extract_map_variable(source: str, map_name: str, champion_id: str) -> str:
+    start = source.find(f"{map_name}={{")
+    if start < 0:
+        return ""
+    body_start = source.find("{", start)
+    body_end = _find_matching_js(source, body_start, "{", "}")
+    if body_end < 0:
+        return ""
+    body = source[body_start + 1:body_end]
+    match = re.search(rf"(?:^|,){re.escape(champion_id)}:([A-Za-z_$][\w$]*)", body)
+    return match.group(1) if match else ""
+
+
+def _extract_bundle_interactions(source: str, champion_id: str) -> list:
+    interactions = []
+    for map_name in ("Tk", "RA"):
+        variable_name = _extract_map_variable(source, map_name, champion_id)
+        if variable_name:
+            interactions.extend(_extract_js_array(source, variable_name))
+    return interactions
+
+
+def _clean_html_text(text: str) -> str:
+    if not text:
+        return ""
+    return BeautifulSoup(text, "html.parser").get_text("", strip=True)
+
+
+def _rarity_to_tier(rarity: str) -> str:
+    return {"kSilver": "银阶", "kGold": "金阶", "kPrismatic": "棱彩阶"}.get(rarity, rarity or "")
+
+
+def _build_augment_lookup(cache_dir: str) -> dict:
+    try:
+        from cdragon_augments import get_augment_descriptions
+        descs = get_augment_descriptions(cache_dir)
+    except Exception as e:
+        log.warning(f"[ApexLol] CDragon 海克斯元数据加载失败: {e}")
+        descs = {}
+
+    lookup = {str(aug_id): info for aug_id, info in descs.items()}
+    for aug_id, info in list(descs.items()):
+        icon = info.get("icon_url", "")
+        name = info.get("name", "")
+        normalized_icon = re.sub(r"[^a-z0-9]", "", icon.lower())
+        normalized_name = re.sub(r"[^a-z0-9]", "", name.lower())
+        for alias in ("voidrift", "criticalmissile", "poroblast"):
+            if alias in normalized_icon or alias in normalized_name:
+                lookup[alias] = info
+    return lookup
+
+
+def _build_item_lookup(cache_dir: str) -> dict:
+    try:
+        from cdragon_items import get_item_descriptions
+        return {str(item_id): info for item_id, info in get_item_descriptions(cache_dir).items()}
+    except Exception as e:
+        log.warning(f"[ApexLol] CDragon 装备元数据加载失败: {e}")
+        return {}
+
+
+def _scrape_champion_from_app_bundle(champion_id: str, cache_dir: str = "") -> dict:
+    try:
+        list_resp = requests.get(f"{BASE_URL}/champions/", headers=HEADERS, timeout=15)
+        list_resp.raise_for_status()
+        soup = BeautifulSoup(list_resp.text, "html.parser")
+        script_src = ""
+        for script in soup.find_all("script", src=True):
+            src = script.get("src", "")
+            if "/assets/app." in src and src.endswith(".js"):
+                script_src = src
+                break
+        if not script_src:
+            return {"id": champion_id, "synergies": []}
+        script_url = _absolutize(script_src)
+        js_resp = requests.get(script_url, headers=HEADERS, timeout=20)
+        js_resp.raise_for_status()
+        interactions = _extract_bundle_interactions(js_resp.text, champion_id)
+    except Exception as e:
+        log.warning(f"[ApexLol] 前端数据兜底失败 {champion_id}: {e}")
+        return {"id": champion_id, "synergies": []}
+
+    augment_lookup = _build_augment_lookup(cache_dir)
+    item_lookup = _build_item_lookup(cache_dir)
+    tag_labels = {"Synergy": "强力联动", "Trap": "陷阱", "Fun": "娱乐", "Bug": "Bug"}
+    synergies = []
+    for item in interactions:
+        if item.get("isDeprecated") or item.get("status") == "deprecated":
+            continue
+        hex_ids = item.get("hextechIds") or ([item.get("hextechId")] if item.get("hextechId") else [])
+        hex_names = []
+        hex_tiers = []
+        hex_icons = []
+        for hex_id in hex_ids:
+            info = augment_lookup.get(str(hex_id), {})
+            hex_names.append(info.get("name") or str(hex_id))
+            hex_tiers.append(_rarity_to_tier(info.get("rarity", "")))
+            hex_icons.append(info.get("icon_url", ""))
+
+        item_names = []
+        item_icons = []
+        for item_id in item.get("recommendedItems") or []:
+            info = item_lookup.get(str(item_id), {})
+            item_names.append(info.get("name") or str(item_id))
+            item_icons.append(info.get("icon_url", f"https://apexlol.info/images/items/{item_id}.webp"))
+
+        tags = [tag_labels.get(tag, tag) for tag in item.get("tags", [])]
+        entry = {
+            "hex_names": hex_names,
+            "hex_tiers": hex_tiers,
+            "hex_icons": hex_icons,
+            "rating": item.get("rating", ""),
+            "tag": "/".join([tag for tag in tags if tag]),
+            "analysis": _clean_html_text((item.get("note") or {}).get("zh", "")),
+        }
+        if item_names:
+            entry["recommended_items"] = item_names
+            entry["recommended_item_icons"] = item_icons
+        if entry["analysis"]:
+            synergies.append(entry)
+
+    log.info(f"[ApexLol] 从前端数据兜底解析 {champion_id}: {len(synergies)} 条")
+    return {"id": champion_id, "cn_name": "", "synergies": synergies}
+
+
+def scrape_champion(champion_id: str, cache_dir: str = "") -> dict:
     """爬取单个英雄的海克斯联动分析数据。
 
     Args:
         champion_id: 英雄 ID（如 "Katarina"）
+        cache_dir: 可选，本地 CDragon 缓存目录；用于前端路由兜底解析名称/图标
 
     Returns:
         {
@@ -116,7 +391,7 @@ def scrape_champion(champion_id: str) -> dict:
         resp.raise_for_status()
     except requests.RequestException as e:
         log.warning(f"[ApexLol] 爬取 {champion_id} 失败: {e}")
-        return {"id": champion_id, "synergies": []}
+        return _scrape_champion_from_app_bundle(champion_id, cache_dir)
 
     resp.encoding = "utf-8"
     soup = BeautifulSoup(resp.text, "html.parser")

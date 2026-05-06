@@ -185,6 +185,20 @@ def _fix_mojibake(s: str) -> str:
 def _build_name_map(data: dict) -> dict:
     """从缓存数据构建 中文名/英文名 -> 英文ID 的查找字典。"""
     name_map = {}
+
+    for champ_data in data.get("champion_list", []):
+        champ_id = champ_data.get("id", "")
+        if not champ_id:
+            continue
+        name_map[champ_id] = champ_id
+        name_map[champ_id.lower()] = champ_id
+        cn_title = champ_data.get("cn_title", "")
+        if cn_title:
+            fixed_title = _fix_mojibake(cn_title)
+            name_map[cn_title] = champ_id
+            if fixed_title != cn_title:
+                name_map[fixed_title] = champ_id
+
     champions = data.get("champions", {})
     for champ_id, champ_data in champions.items():
         name_map[champ_id] = champ_id
@@ -296,7 +310,7 @@ def ensure_champion_cached(name: str, cache_dir: str) -> tuple[bool, str]:
 
     # 在线爬取这一个英雄
     log.info(f"[ApexLol] 按需爬取 {name} -> {cid} ...")
-    data = scrape_champion(cid)
+    data = scrape_champion(cid, cache_dir)
     if not data or not data.get("synergies"):
         return False, f"scrape_empty: {cid}"
 
@@ -571,7 +585,13 @@ def extract_top_synergies_json(champion_name: str, top_n: int = 8) -> dict:
 
     champ_data = _cache.get("champions", {}).get(champ_id) or {}
     synergies = champ_data.get("synergies") or []
-    cn_title = _fix_mojibake(champ_data.get("cn_title", champ_id))
+    cn_title = _fix_mojibake(champ_data.get("cn_title", ""))
+    if not cn_title:
+        for champ_meta in _cache.get("champion_list", []):
+            if champ_meta.get("id") == champ_id:
+                cn_title = _fix_mojibake(champ_meta.get("cn_title", ""))
+                break
+    cn_title = cn_title or champ_id
 
     traps = [s for s in synergies if "陷阱" in _fix_mojibake(s.get("tag", ""))]
     normals = [s for s in synergies if "陷阱" not in _fix_mojibake(s.get("tag", ""))]

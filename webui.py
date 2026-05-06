@@ -101,11 +101,11 @@ def api_rune_data(req: RuneDataReq):
     try:
         from apexlol_data import ensure_champion_cached, extract_top_synergies_json
         ok, info = ensure_champion_cached(name, config.APEXLOL_CACHE_DIR)
-        if not ok:
+        if not ok and not str(info).startswith("scrape_empty:"):
             return JSONResponse({"ok": False, "error": f"获取数据失败：{info}"}, status_code=404)
         data = extract_top_synergies_json(name, top_n=n)
         if not data.get("builds") and not data.get("trap_warnings"):
-            return JSONResponse({"ok": False, "error": f"暂无「{name}」的联动数据"}, status_code=404)
+            data["message"] = f"ApexLol 暂未提供「{data.get('champion_cn') or name}」的联动方案；右侧 OP.GG 海克斯强化仍可参考。"
         # 注入天赋描述数据
         try:
             from cdragon_augments import get_augment_descriptions
